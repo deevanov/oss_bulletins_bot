@@ -99,7 +99,7 @@ def main():
     #scheduler = AsyncIOScheduler(timezone=timezone("Europe/Moscow"))
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("начать", begin))
+    #app.add_handler(CommandHandler("начать", begin))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Бот запущен!")
