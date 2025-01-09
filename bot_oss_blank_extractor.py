@@ -5,8 +5,8 @@ import os
 import requests
 from PyPDF2 import PdfReader, PdfWriter
 from telegram import Update
-from pytz import timezone
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
+#from pytz import timezone
+#from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
@@ -96,8 +96,8 @@ def main():
     """Основная функция запуска бота."""
     if not TELEGRAM_TOKEN:
         raise ValueError("TELEGRAM_TOKEN не найден. Убедитесь, что он указан в .env.")
-    scheduler = AsyncIOScheduler(timezone=timezone("Europe/Moscow"))
-    app = ApplicationBuilder().token(TELEGRAM_TOKEN).job_queue(scheduler).build()
+    #scheduler = AsyncIOScheduler(timezone=timezone("Europe/Moscow"))
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("начать", begin))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
