@@ -1,22 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
-
-
 import os
 import requests
 from PyPDF2 import PdfReader, PdfWriter
 from telegram import Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
-
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
-import os
 
+# Загрузка токена из файла .env
 load_dotenv()
-
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-
 
 # Пути для локального хранения файлов
 LOCAL_FILES = {
@@ -30,6 +24,7 @@ REMOTE_FILES = {
 }
 
 def ensure_files_downloaded():
+    """Проверяет и скачивает отсутствующие файлы."""
     os.makedirs("temp", exist_ok=True)
     for name, local_path in LOCAL_FILES.items():
         if not os.path.exists(local_path):
@@ -38,12 +33,11 @@ def ensure_files_downloaded():
             with open(local_path, "wb") as f:
                 f.write(response.content)
 
-
 def search_and_extract(file_path, search_term, corpus, match_count):
+    """Ищет текст и извлекает страницы из PDF."""
     reader = PdfReader(file_path)
     for page_number, page in enumerate(reader.pages):
         if search_term in page.extract_text():
-            # Нахождение текста, извлечение страниц
             start_page = page_number
             end_page = min(start_page + 4, len(reader.pages))
 
@@ -51,7 +45,6 @@ def search_and_extract(file_path, search_term, corpus, match_count):
             for i in range(start_page, end_page):
                 writer.add_page(reader.pages[i])
 
-            # Сохранение в новый файл
             sanitized_term = search_term.replace(" ", "_").replace("/", "_").replace("\\", "_")
             output_file = f"temp/extracted_{corpus}_{sanitized_term}_{match_count}.pdf"
             with open(output_file, "wb") as output:
@@ -60,23 +53,25 @@ def search_and_extract(file_path, search_term, corpus, match_count):
     return None
 
 # Команды Telegram-бота
-def start(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text(
-        "Это бот для выгрузки в pdf отдельных именных бланков на ОСС по инициативе собственников ЖК Рихард (25.12.24 - 25.02.25)"
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик команды /start."""
+    await update.message.reply_text(
+        "Это бот для выгрузки в PDF отдельных именных бланков на ОСС по инициативе собственников ЖК Рихард (25.12.24 - 25.02.25)"
     )
-    update.message.reply_text("Введите /начать для работы с ботом.")
+    await update.message.reply_text("Введите /начать для работы с ботом.")
     ensure_files_downloaded()
 
-def begin(update: Update, context: CallbackContext) -> None:
-    update.message.reply_text("Напишите ФИО собственника помещения/наименование юридического лица")
+async def begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обработчик команды /начать."""
+    await update.message.reply_text("Напишите ФИО собственника помещения/наименование юридического лица")
 
-def handle_message(update: Update, context: CallbackContext) -> None:
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает текстовые сообщения."""
     search_term = update.message.text.strip()
     if not search_term:
-        update.message.reply_text("Введите корректное ФИО или название юридического лица.")
+        await update.message.reply_text("Введите корректное ФИО или название юридического лица.")
         return
 
-    # Выполняем поиск
     match_count = 0
     results = []
     for name, local_path in LOCAL_FILES.items():
@@ -88,22 +83,24 @@ def handle_message(update: Update, context: CallbackContext) -> None:
     if results:
         for result_file in results:
             with open(result_file, "rb") as f:
-                update.message.reply_document(f, filename=os.path.basename(result_file))
+                await update.message.reply_document(f, filename=os.path.basename(result_file))
     else:
-        update.message.reply_text(f"Текст '{search_term}' не найден.")
+        await update.message.reply_text(f"Текст '{search_term}' не найден.")
 
 # Настройка и запуск бота
 def main():
-    TOKEN = TELEGRAM_TOKEN
-    updater = Updater(TOKEN)
+    """Основная функция запуска бота."""
+    if not TELEGRAM_TOKEN:
+        raise ValueError("TELEGRAM_TOKEN не найден. Убедитесь, что он указан в .env.")
 
-    updater.dispatcher.add_handler(CommandHandler("start", start))
-    updater.dispatcher.add_handler(CommandHandler("начать", begin))
-    updater.dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
 
-    updater.start_polling()
-    updater.idle()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("начать", begin))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("Бот запущен!")
+    app.run_polling()
 
 if __name__ == "__main__":
     main()
-
