@@ -96,7 +96,7 @@ def main():
     """Основная функция запуска бота."""
     if not TELEGRAM_TOKEN:
         raise ValueError("TELEGRAM_TOKEN не найден. Убедитесь, что он указан в .env.")
-    scheduler = AsyncIOScheduler(timezone=timezone("UTC"))
+    scheduler = AsyncIOScheduler(timezone=timezone("MSK"))
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).job_queue(scheduler).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("начать", begin))
