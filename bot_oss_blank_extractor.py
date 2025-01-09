@@ -37,7 +37,8 @@ def search_and_extract(file_path, search_term, corpus, match_count):
     """Ищет текст и извлекает страницы из PDF."""
     reader = PdfReader(file_path)
     for page_number, page in enumerate(reader.pages):
-        if search_term in page.extract_text():
+        text = page.extract_text()
+        if search_term in text:
             start_page = page_number
             end_page = min(start_page + 4, len(reader.pages))
 
