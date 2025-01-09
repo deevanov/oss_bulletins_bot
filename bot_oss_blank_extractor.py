@@ -62,7 +62,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         "Это бот для выгрузки в PDF отдельных именных бланков на ОСС по инициативе собственников ЖК Рихард (25.12.24 - 25.02.25)"
     )
-    await update.message.reply_text("Введите /начать для работы с ботом.")
+    #await update.message.reply_text("Введите /начать для работы с ботом.")
     ensure_files_downloaded()
 
 async def begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
