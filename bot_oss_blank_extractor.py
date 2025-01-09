@@ -10,7 +10,13 @@ from PyPDF2 import PdfReader, PdfWriter
 from telegram import Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
 
-import settings
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+
 
 # Пути для локального хранения файлов
 LOCAL_FILES = {
@@ -88,7 +94,7 @@ def handle_message(update: Update, context: CallbackContext) -> None:
 
 # Настройка и запуск бота
 def main():
-    TOKEN = settings.TG_TOKEN
+    TOKEN = TELEGRAM_TOKEN
     updater = Updater(TOKEN)
 
     updater.dispatcher.add_handler(CommandHandler("start", start))
