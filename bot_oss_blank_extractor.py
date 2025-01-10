@@ -3,11 +3,9 @@
 
 import os
 import requests
+import csv
 from PyPDF2 import PdfReader, PdfWriter
 from telegram import Update
-#from pytz import timezone
-#from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes
 from dotenv import load_dotenv
 
@@ -26,15 +24,43 @@ REMOTE_FILES = {
     "Корпус 2": "https://drive.google.com/uc?id=1gX6U0lljhehiTbfjlGC5ZS-sUphJkGBm"
 }
 
+GOOGLE_SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/17c7PMdqBagYhzKfpN500X2bXMb8DVvcwG2HTLuZfs9M/export?format=csv"
+LOCAL_CSV_PATH = "temp/sheet_data.csv"
+
+
 def ensure_files_downloaded():
     """Проверяет и скачивает отсутствующие файлы."""
     os.makedirs("temp", exist_ok=True)
+
+    # Проверяем наличие локальных PDF-файлов
     for name, local_path in LOCAL_FILES.items():
         if not os.path.exists(local_path):
             print(f"Скачивание файла для {name}...")
             response = requests.get(REMOTE_FILES[name])
             with open(local_path, "wb") as f:
                 f.write(response.content)
+
+    # Проверяем наличие таблицы
+    if not os.path.exists(LOCAL_CSV_PATH):
+        print("Скачивание таблицы с Google Sheets...")
+        response = requests.get(GOOGLE_SHEET_CSV_URL)
+        with open(LOCAL_CSV_PATH, "wb") as f:
+            f.write(response.content)
+
+
+def search_in_csv(search_term):
+    """Ищет введённый текст как часть строки в таблице."""
+    if not os.path.exists(LOCAL_CSV_PATH):
+        print("Файл таблицы отсутствует.")
+        return False
+
+    with open(LOCAL_CSV_PATH, "r", encoding="utf-8") as csv_file:
+        reader = csv.reader(csv_file)
+        for row in reader:
+            if len(row) > 0 and search_term.strip() in row[0].strip():
+                return True
+    return False
+
 
 def search_and_extract(file_path, search_term, corpus, match_count):
     """Ищет текст и извлекает страницы из PDF."""
@@ -56,18 +82,15 @@ def search_and_extract(file_path, search_term, corpus, match_count):
             return output_file
     return None
 
+
 # Команды Telegram-бота
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обработчик команды /start."""
     await update.message.reply_text(
         "Это бот для выгрузки в PDF отдельных именных бланков на ОСС по инициативе собственников ЖК Рихард (25.12.24 - 25.02.25)"
     )
-    #await update.message.reply_text("Введите /начать для работы с ботом.")
     ensure_files_downloaded()
 
-async def begin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обработчик команды /начать."""
-    await update.message.reply_text("Напишите ФИО собственника помещения/наименование юридического лица")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает текстовые сообщения."""
@@ -76,6 +99,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("Введите корректное ФИО или название юридического лица.")
         return
 
+    # Поиск в таблице
+    if not search_in_csv(search_term):
+        await update.message.reply_text(
+            "Поиск не дал результата. Проверьте правильность и полноту написания ФИО собственника помещения/наименование юридического лица."
+        )
+        return
+
+    # Если найдено в таблице, ищем в PDF
     match_count = 0
     results = []
     for name, local_path in LOCAL_FILES.items():
@@ -89,21 +120,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             with open(result_file, "rb") as f:
                 await update.message.reply_document(f, filename=os.path.basename(result_file))
     else:
-        await update.message.reply_text(f"Текст '{search_term}' не найден.")
+        await update.message.reply_text(f"Текст '{search_term}' найден в таблице, но не найден в PDF-файлах.")
+
 
 # Настройка и запуск бота
 def main():
     """Основная функция запуска бота."""
     if not TELEGRAM_TOKEN:
         raise ValueError("TELEGRAM_TOKEN не найден. Убедитесь, что он указан в .env.")
-    #scheduler = AsyncIOScheduler(timezone=timezone("Europe/Moscow"))
+
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
-    #app.add_handler(CommandHandler("начать", begin))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     print("Бот запущен!")
     app.run_polling()
+
 
 if __name__ == "__main__":
     main()
