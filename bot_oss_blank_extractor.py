@@ -95,8 +95,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Обрабатывает текстовые сообщения."""
     search_term = update.message.text.strip()
-    if not search_term:
-        await update.message.reply_text("Введите корректное ФИО или название юридического лица.")
+
+    # Проверка количества слов
+    word_count = len(search_term.split())
+    if word_count != 3 and word_count <= 5:
+        await update.message.reply_text(
+            "Поиск не дал результата. Проверьте правильность и полноту написания ФИО собственника помещения/наименование юридического лица."
+        )
         return
 
     # Поиск в таблице
